@@ -38,7 +38,7 @@ Let's continue working with our inflow data for reservoirs in Brazil.
 ```{r}
 #This R cde chunk was copied from M4
 #Importing time series data from text file#
-raw_inflow_data <- read.table(file="./Data/inflowtimeseries.txt",header=FALSE,skip=0)
+raw_inflow_data <- read.table(file="/Users/faustinkambale/Library/CloudStorage/OneDrive-DukeUniversity/Spring 2024 classes/Time Series 4 Energy/TSA_Sp24_New/Data/inflowtimeseries.txt",header=FALSE,skip=0)
 
 colnames(raw_inflow_data)=c("Month","Year", "HP1", "HP2","HP3","HP4", "HP5",
                             "HP6","HP7", "HP8","HP9","HP10", "HP11","HP12", 
@@ -53,7 +53,7 @@ my_date <- my(my_date)  #function my from package lubridate
 
 #add that to inflow_data and store in a new data frame 
 inflow_data <- cbind(my_date,raw_inflow_data[,3:(3+nhydro-1)])
-head(inflow_data,24)
+head(inflow_data)
 
 #Remove last for rows by replacing current data frame
 inflow_data <- inflow_data[1:(nobs-4),]
@@ -102,7 +102,9 @@ The random component is the time series without seasonal and trend component. Le
 ```{r}
 #Using R decompose function
 iHP=1
-decompose_inflow_data <- decompose(ts_inflow_data[,iHP],"additive")
+decompose_inflow_data <- decompose(ts_inflow_data[,iHP],"additive") #use either additive or multiplicative. The latter if we believe the trend is function of time. 
+#should start with additive and try the multiplicative. 
+#stl also do the job, but cannot do the multiplicative.
 plot(decompose_inflow_data)
 
 #Inspect random component
@@ -111,7 +113,9 @@ mean_inflow <- mean(inflow_random)
 sd_inflow <- sd(inflow_random)
 
 cat(mean_inflow,sd_inflow)
-#Note random series has some missing values, that is why we got NAs
+#Note random series has some missing values, that is why we got NAs. We are missing 
+#some observations. 
+#summary function gives us how many NAs we have. 
 
 #Compute mean and standard deviation without missing values
 mean_inflow <- mean(na.exclude(inflow_random))  #exclude NA or missing observation to compute mean and std
@@ -120,7 +124,7 @@ sd_inflow <- sd(na.exclude(inflow_random))
 cat(mean_inflow,sd_inflow)
 
 autoplot(inflow_random)+
-  autolayer(tsclean(inflow_random))
+  autolayer(tsclean(inflow_random))#tsclean removes the outliers.
 
 ```
 
@@ -140,7 +144,7 @@ head(df_inflow_random,10)
 tail(df_inflow_random,10)
 
 #Just remove them since they are on tails
-df_inflow_random <- na.omit(df_inflow_random)
+df_inflow_random <- na.omit(df_inflow_random) # removes na observations.
 
 #Check data again
 sum(is.na(df_inflow_random$inflow))
@@ -155,7 +159,7 @@ Data is ready!
 ```{r}
 #Generating a box plot by factor where factor is month of the year
 ggplot(df_inflow_random, aes(x=month, y=inflow)) +
-            geom_boxplot()
+            geom_boxplot() #these are not outliers. they should be treated separately to make sure we know what they are. 
 
 ggplot(df_inflow_random, aes(x=date, y=inflow)) +
             geom_line() +
@@ -193,7 +197,7 @@ If the test performed confirms an outlier and you want to remove use function `r
                       
 
 ```{r}
-#Just find extreme value
+#Just find extreme value (identify the outlier)
 outlier(df_inflow_random$inflow) 
                   
 #Function chisq.out.test check if extreme value is outlier
@@ -209,7 +213,6 @@ ggplot(df_inflow_random, aes(x=date, y=inflow)) +
             geom_line() +
             geom_abline(slope=0,intercept=3*sd_inflow,color="red") +
             geom_abline(slope=0,intercept=-3*sd_inflow,color="red")
-
 ```
 
 Note we still seem to have some outliers. You can repeat the process until the next extreme value is not an outlier or write a loop as below.
@@ -226,6 +229,7 @@ clean_inflow_random <- tsclean(ts_inflow_random)
 
 autoplot(ts_inflow_random,series="Random")+
   autolayer(clean_inflow_random,series="Cleaned")
+#use tsclean if you are confident with your analysis. 
 
 ```
 

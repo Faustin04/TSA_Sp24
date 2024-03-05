@@ -1,0 +1,50 @@
+---
+title: "Review of the A03"
+author: "Faustin Kambale"
+output: pdf_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=80), tidy=FALSE)
+```
+
+## Loading packages
+
+```{r package, message=FALSE}
+library(lubridate)
+library(ggplot2)
+library(forecast)
+library(Kendall)
+library(tseries)
+library(readxl)
+
+```
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=80), tidy=FALSE)
+```
+
+#Importing Data
+```{r}
+energy_data <- read_excel("/Users/faustinkambale/Library/CloudStorage/OneDrive-DukeUniversity/Spring 2024 classes/Time Series 4 Energy/TSA_Sp24_New/Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx",
+                          skip = 12,
+                          sheet = "Monthly Data",
+                          col_names = FALSE)
+```
+
+```{r}
+read_col_names <- read_excel("/Users/faustinkambale/Library/CloudStorage/OneDrive-DukeUniversity/Spring 2024 classes/Time Series 4 Energy/TSA_Sp24_New/Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx", 
+                             skip = 10, n_max = 1, sheet = "Monthly Data", col_names = FALSE)
+```
+```{r}
+colnames(energy_data) <- read_col_names
+data <- energy_data[,c(1,5:6)] 
+nobs <- nrow(data)
+
+t <- 1:nobs
+#transforming just the two columns of interest into ts object
+tsdata <- ts(data[t,1,3], frequency=12,start=c(1973,1))
+#frequency=12 because of monthly data. Data starts from Jan 1973.
+head(tsdata, 5)
+```
+
