@@ -26,10 +26,8 @@ library(Kendall)
 library(tseries)
 library(outliers)
 library(tidyverse)
-
-#install.packages("smooth")
 library(smooth)
-
+library(here)
 ```
 
 ## Importing data
@@ -129,19 +127,23 @@ These three function take a few main arguments:
 
 ```{r}
 #Model 1: Arithmetic mean on original data
-
-
+Model1 <- meanf(ts_electricity_price[,"All.sectors"],h=12)
+summary (Model1)
+plot(Model1)
 #Model 2: Arithmetic mean on deseas data
-
-
+Model2 <- meanf(deseasonal_allsectors_price,h=12)
+summary (Model2)
+plot(Model2)
 #Model 3: Seasonal naive on original data
-
+Model3 <- snaive(ts_electricity_price[,"All.sectors"],h=12)
+summary (Model3)
+plot(Model3)
 
 #Model 4: Naive on deseas data
-
-
+Model4 <- naive(deseasonal_allsectors_price,h=12)
+summary (Model4)
+plot(Model4)
 ```
-
 
 
 ## Forecasting with Simple Averaging Models
@@ -170,21 +172,36 @@ We will try these models on the original dataset and the deaseason electricity p
 
 ```{r}
 # Model 5: Simple moving average on deseasonal data
-
+Model5 <- sma(deseasonal_allsectors_price,h=12) #holdout = TRUE)
+#summary(Model5)
+autoplot(deseasonal_allsectors_price, series="Deseasonal")+
+  autolayer(Model5$forecast, series="SMA")
 
 # Model 6: Simple moving average on original data
-
+Model6 <- sma(ts_electricity_price[,"All.sectors"],h=12)
+#summary(Model5)
+autoplot(ts_electricity_price[,"All.sectors"], series="Original")+
+  autolayer(Model5$forecast, series="SMA-model6")
 
 # Model 7:  Simple exponential smoothing on deseasonal data
-
+Model7 <- ses(deseasonal_allsectors_price,h=12)
+plot(Model7)
+#autoplot(ts_electricity_price[,"All.sectors"], series="Original")+
+ # autolayer(Model5$forecast, series="SMA-model6")
 
 # Model 8:  Simple exponential smoothing on original data
-
-
-
+Model8 <- ses(ts_electricity_price[,"All.sectors"],h=12)
+plot(Model8)
 
 ```
 
+## Chech the power to estimate the historical data 
+
+```{r}
+autoplot(ts_electricity_price[,"All.sectors"], 
+         series="Original")+
+  autolayer(Model8$fitted, series="ES-model8")
+```
 
 ## Forecasting with ARIMA
 
@@ -196,13 +213,25 @@ When forecasting with ARIMA models, first you will need to fit the model with th
 ```{r}
 
 # Model 9:  SARIMA on original data
+Model9<- auto.arima(ts_electricity_price[,"All.sectors"])
+Model9_for <- forecast(Model9, h=12)
+plot(Model9_for)
 
-
-
+autoplot(ts_electricity_price[,"All.sectors"], 
+         series="Original")+
+  autolayer(Model9$fitted, series="SARIMA")+
+  autolayer(Model9_for$mean, series = "SARIMA_for")
 
 # Model 10:  ARIMA on deseasonal data
+Model10 <- auto.arima(deseasonal_allsectors_price, seasonal = FALSE)
+plot(Model10)
+Model10_for <- forecast(Model10, h=12)
+plot(Model10_for)
 
-
+autoplot(deseasonal_allsectors_price, 
+         series="Deseasonal")+
+  autolayer(Model10$fitted, series="ARIMA")+
+  autolayer(Model10_for$mean, series = "ARIMA_for")
 
 ```
 
