@@ -1,0 +1,263 @@
+---
+title: "ENV 797 - Time Series Analysis for Energy and Environment Applications | Spring 2024"
+subtitle: "Assignment 7 - Due date 03/07/24"
+author: "Faustin Kambale"
+output: pdf_document
+geometry: margin=2.54cm
+editor_options: 
+  chunk_output_type: console
+---
+
+## Directions
+
+You should open the .rmd file corresponding to this assignment on RStudio. The file is available on our class repository on Github. And to do so you will need to fork our repository and link it to your RStudio.  
+
+Once you have the file open on your local machine the first thing you will do is rename the file such that it includes your first and last name (e.g., "LuanaLima_TSA_A07_Sp24.Rmd"). Then change "Student Name" on line 4 with your name. 
+
+Then you will start working through the assignment by  **creating code and output** that answer each question. Be sure to use this assignment document. Your report should contain the answer to each question and any plots/tables you obtained (when applicable).
+
+When you have completed the assignment, **Knit** the text and code into a single PDF file. Submit this pdf using Sakai. 
+
+Packages needed for this assignment: "forecast","tseries". Do not forget to load them before running your script, since they are NOT default packages.\\
+
+## Set up
+
+```{r, message=FALSE}
+library(lubridate)
+library(ggplot2)
+library(forecast)  
+library(Kendall)
+library(tseries)
+library(outliers)
+library(tidyverse)
+library(cowplot)
+library(sarima)
+library(patchwork)
+library(dplyr)
+library(forecast)
+```
+
+## Importing and processing the data set
+
+Consider the data from the file "Net_generation_United_States_all_sectors_monthly.csv". The data corresponds to the monthly net generation from January 2001 to December 2020 by source and is provided by the US Energy Information and Administration. **You will work with the natural gas column only**.
+
+
+### Q1
+
+Import the csv file and create a time series object for natural gas. Make you sure you specify the **start=** and **frequency=** arguments. Plot the time series over time, ACF and PACF.
+
+```{r}
+raw_data <- read.csv(file ="/Users/faustinkambale/Library/CloudStorage/OneDrive-DukeUniversity/Spring 2024 classes/Time Series 4 Energy/TSA_Sp24/Data/Net_generation_United_States_all_sectors_monthly.csv",
+                     header=TRUE,skip=4)
+#Processing Data
+datasorted <-
+  raw_data %>%
+  mutate( Month = my(Month) ) %>% 
+  arrange( Month )
+
+#Set variables to work with
+data <- as.data.frame(datasorted[, 4])
+tsdata <- ts(data, start=c(2001,1), frequency=12)
+plot(tsdata, main = "Natural Gaz Data")
+```
+
+### Q2
+
+Using the $decompose()$ or $stl()$ and the $seasadj()$ functions create a series without the seasonal component, i.e., a deseasonalized natural gas series. Plot the deseasonalized series over time and corresponding ACF and PACF. Compare with the plots obtained in Q1.
+
+```{r}
+#Decomposing with additive function 
+datadecomp_add <- decompose(tsdata, type = "additive")
+plot(datadecomp_add)
+datadecomp_mult <- decompose(tsdata, type = "multiplicative")
+plot(datadecomp_mult)
+
+datadeseasonal <- seasadj(datadecomp_add)
+plot(datadeseasonal, main = "Deseasonal Data")
+
+#Comparing plot
+autoplot (tsdata, series = "original", main = "Comparison")+
+  autolayer (datadeseasonal, series = "deseasonalized")
+
+#ACF and PACF plots
+par(mfrow=c(1,2))
+deseason_acf <-Acf(datadeseasonal, lag = 40, main = "Deseasonal Acf", plot=TRUE)
+deseason_pacf <-Pacf(datadeseasonal, lag = 40, main = "Deseasonal Pacf", plot=TRUE)
+par(mfrow=c(1,1))
+
+#Comparing ACF and PACF plots from the original 
+plot_grid(
+  autoplot(tsdata, series = "original", main = "Original Data")+ 
+  autolayer (datadeseasonal, series = "deseasonalized"),
+  autoplot(Acf(datadeseasonal, lag = 40, plot=FALSE), 
+           main = "Deseasonal ACF"),
+  autoplot(Pacf(datadeseasonal, lag = 40, plot=FALSE), 
+           main = "Deseasonal PACF"), 
+  nrow = 3, ncol = 1
+  )
+```
+
+
+## Modeling the seasonally adjusted or deseasonalized series
+
+### Q3
+
+Run the ADF test and Mann Kendall test on the deseasonalized data from Q2. Report and explain the results.
+
+```{r}
+# ADF Test
+adf_result <- adf.test(datadeseasonal)
+print(adf_result)
+
+# Mann Kendall test 
+mk_result <- MannKendall(datadeseasonal)
+print(mk_result)
+```
+
+The Dickey-Fuller of -4.0271, Lag order = 6, p-value = 0.01 indicate that we can reject the null hypothesis and confirm the alternative that our series are stationary. Result statistically significant at 10% level.
+Mann Kendall test : tau = 0.843 (close to 1) and a 2-sided p-value =< 2.22e-16 (close to zero) indicate that our series *have a strong positive trend*. This result is *statistically significant*. 
+
+### Q4
+
+Using the plots from Q2 and test results from Q3 identify the ARIMA model parameters $p,d$ and $q$. Note that in this case because you removed the seasonal component prior to identifying the model you don't need to worry about seasonal component. Clearly state your criteria and any additional function in R you might use. DO NOT use the $auto.arima()$ function. You will be evaluated on ability to understand the ACF/PACF plots and interpret the test results.
+
+```{r}
+# Identifying the ARIMA parameters 
+
+#d=0  because the original series are stationary and did not differentiate.
+#p = 1 because there is a sharp decline after lag 1, the rest is insignificant (fitting in the blue lines)
+#q = 0 there is an AR process (gradual decay) with any cutt off.  
+
+#A good model for this data would be :
+d=0
+p=1
+q=0
+
+#Therefore parameters are :
+  p <-1
+  d <- 0
+  q <-0
+```
+
+### Q5
+
+Use `Arima()` from package "forecast" to fit an ARIMA model to your series considering the order estimated in Q4. You should allow constants in the model, i.e., `include.mean = TRUE` or `include.drift=TRUE`. **Print the coefficients** in your report. Hint: use the `cat()` r `print()` function to print.
+
+```{r}
+  # Fitting the ARIMA model
+arima_model <- arima(datadeseasonal, order=c(1, 0, 0), include.mean=TRUE)
+print(arima_model)
+
+#trying another model 
+arima_model1 <- arima(datadeseasonal, order=c(1,0,1), include.mean=TRUE)
+print(arima_model1) # (1,0,1) because we don't need to differentiate.
+
+arima_model2 <- arima(datadeseasonal, order=c(2,0,2), include.mean=TRUE)
+print(arima_model2)
+```
+After fitting the model based on our parameters, meaning P=1, d=0 and q=0, but ARIMA (1,0,1) model appears to be the best fit out of the three models as it has the lowest AIC. Arima (2,0,2), though with the lowest AIC, it has higher intercept (AR1 greater than 1) and large standard error. 
+
+### Q6
+
+Now plot the residuals of the ARIMA fit from Q5 along with residuals ACF and PACF on the same window. You may use the $checkresiduals()$ function to automatically generate the three plots. Do the residual series look like a white noise series? Why?
+
+```{r}
+# Check the residuals
+checkresiduals(arima_model1)
+```
+The residual time plot shows some high spikes, which may suggest spacial outliers, i.e. the residuals are not entirely white noise. The histogram displays a similar result. 
+The ACF displays a few lags outside the confidence bounds (above and below 0) and many withing the confidence bounds, this may mean potential autocorrelation at those outbounded lags.
+
+## Modeling the original series (with seasonality)
+
+### Q7
+
+Repeat Q4-Q6 for the original series (the complete series that has the seasonal component). Note that when you model the seasonal series, you need to specify the seasonal part of the ARIMA model as well, i.e., $P$, $D$ and $Q$.
+
+```{r}
+#Running the ADF and Mann Kendall tests on original Data
+
+# ADF Test
+adf_result1 <- adf.test(tsdata)
+print(adf_result1)
+
+# Mann Kendall test 
+mk_result1 <- MannKendall(tsdata)
+print(mk_result1)
+
+# We still can see sationarity and trend in the non seasonal data. Let's estimate the PDQ parameters. 
+
+#ACF and PACF of Orignal Data
+
+par(mfrow=c(1,2))
+acf_orig <-Acf(tsdata, lag = 40, main = "Original Acf", plot=TRUE)
+pacf_orig <-Pacf(tsdata, lag = 40, main = "Original Pacf", plot=TRUE)
+par(mfrow=c(1,1))
+
+#d = 0 (ADF test (-8.9602, p-value = 0.01)) indicating rationarity, need for differentiting.
+#D = 1 given the significant spikes in the ACF intervals 
+#p = 1 given the spike at lag 1
+#P = 0 no clear spikes at seasonal lage in the PACF, we can speculate on this value.
+#q = 0  
+#Q = 1 given the significant autocorrelation at first seasonal lag (lag 12)
+
+#Fitting ARIMA model on the seasonal data 
+
+arima_seasonal <- Arima(tsdata, order=c(1,0,0), seasonal=c(0,1,1), include.mean=TRUE)
+print(arima_seasonal)
+
+#Fitting another model to speculate on the P
+arima_seasonal1 <- Arima(tsdata, order=c(1,0,1), seasonal=c(1,1,1), include.mean=TRUE)
+print(arima_seasonal1)
+
+#Check the residuals
+checkresiduals(arima_seasonal1)
+
+```
+Again, a counterintuitive idea appears here. While we suggested the parameters (1,0,0)(0,1,10, the analysis reveals that the model (ARIMA(1,0,1)(1,1,1)[12]) would fit the data better based on lower AIC, AICc, and BIC. 
+
+### Q8
+
+Compare the residual series for Q7 and Q6. Can you tell which ARIMA model is better representing the Natural Gas Series? Is that a fair comparison? Explain your response.
+
+```{r}
+#Deseasonal Residuals 
+checkresiduals(arima_model1)
+
+#Seasonal residuals 
+checkresiduals(arima_seasonal1)
+```
+*Comparison
+
+For the first plot (ARIMA(1,0,1)):
+The time plot shows residuals around zero with some outliers.
+The ACF plot shows several spikes outside the blue line (confidence intervals), suggesting some autocorrelation.
+For the second plot (ARIMA(1,0,1)(1,1,1)[12]):
+The time plot again shows residuals around zero, with fewer outliers.
+The ACF plot shows fewer spikes outside blue lines, suggesting data might be closer to white noise.
+
+*Therefore, the seasonal ARIMA model (ARIMA(1,0,1)(1,1,1)[12]) seems to have residuals that are closer to white noise, as indicated by fewer significant spikes in the ACF plot.*
+
+## Checking your model with the auto.arima()
+
+**Please** do not change your answers for Q4 and Q7 after you ran the $auto.arima()$. It is **ok** if you didn't get all orders correctly. You will not loose points for not having the same order as the $auto.arima()$.
+
+### Q9
+
+Use the $auto.arima()$ command on the **deseasonalized series** to let R choose the model parameter for you. What's the order of the best ARIMA model? Does it match what you specified in Q4?
+
+```{r}
+autoarima_deseas <- auto.arima(datadeseasonal)
+print(autoarima_deseas)
+```
+I got ARIMA (1,0,1) and auto.arima gives me (1,1,1). However, I did not try this model (1,1,1) because I couldn't defferentiate series after they are deseasoned. That is why, trying other models in Q5, I tried ARIMA(1,0,1) because I knew we don't need to differentiate the series after deseasoning.  
+
+### Q10
+
+Use the $auto.arima()$ command on the **original series** to let R choose the model parameters for you. Does it match what you specified in Q7?
+
+```{r}
+autoarima_origin <- auto.arima(tsdata)
+print(autoarima_origin)
+```
+I got this one. However, the function include.drift = TRUE was not running. I therefore used include.mean=TRUE. 
