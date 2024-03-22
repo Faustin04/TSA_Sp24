@@ -58,7 +58,12 @@ datasorted <-
 #Set variables to work with
 data <- as.data.frame(datasorted[, 4])
 tsdata <- ts(data, start=c(2001,1), frequency=12)
-plot(tsdata, main = "Natural Gaz Data")
+plot_grid(
+autoplot(tsdata, main = "Natural Gaz Data"),
+autoplot(Acf(tsdata, lag.max = 40)),
+autoplot(Pacf(tsdata, lag.max = 40)),
+nrow = 1
+)
 ```
 
 ### Q2

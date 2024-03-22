@@ -12,7 +12,7 @@ editor_options:
 
 ## CREATE A REPOSITORY IN YOUR GITHUB ACCOUNT
 
-1. Go to your user account on GitHub an navigate to the repositories tab. 
+1. Go to your user account on GitHub and navigate to the repositories tab. 
 
 3. In the upper right corner, click the green "New" button. 
 
