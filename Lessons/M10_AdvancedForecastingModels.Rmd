@@ -9,7 +9,7 @@ editor_options:
     wrap: sentence
 ---
 
-## Learning Goals for M11
+## Learning Goals for M10
 
 1. Discuss challenges in forecasting higher frequency time series.
 2. Discuss complex seasonalities.
@@ -102,7 +102,7 @@ Today we will learn a few examples of models for multiple seasonal patterns.
 * ETS
 * ARIMA with dynamic harmonic fourier components
 * TBATS
-* Neural Network
+* Neural Network (is ARIMA with non linear model) 
 
 
 ## Importing data with multiple seasonal patterns
@@ -183,7 +183,7 @@ Recall from `ts()` function that frequency is the number of observation per seas
 ```{r message=FALSE, warning=FALSE}
 ts_act_power_hourly <- msts(act_power_hourly$hourly_mean_active_power, 
                             seasonal.periods =c(24,168,8766),
-                            start=c(2006,12,16))
+                            start=c(2006,12,16)) #specificity for hourly data
 
 ts_act_power_daily <- msts(act_power_daily$daily_mean_active_power, 
                            seasonal.periods =c(7,365.25),
@@ -272,16 +272,18 @@ Fourier terms are used to model the seasonal components. It resembles the season
 ```{r ARIMA, echo=TRUE, message=FALSE, warning=FALSE}
 #Fit arima model with fourier terms as exogenous regressors
 # seasonal = FALSE is the same as P=D=Q=0
-# play with K by changing it to K=c(2,2), K=c(2,4), K=c(2,6), etc. The higher teh K the longer it will take to converge, because R will try more models.
+# play with K by changing it to K=c(2,2), K=c(2,4), K=c(2,6), etc. The higher the K the longer it will take to converge, because R will try more models.
 
 ARIMA_Four_fit <- auto.arima(ts_act_power_daily_train, 
-                             seasonal=FALSE, 
+                             seasonal=FALSE, #SARIMA doesnt handle seasonality.
                              lambda=0,
-                             xreg=fourier(ts_act_power_daily_train, 
-                                          K=c(2,12))
+                             xreg=fourier(ts_act_power_daily_train,  #fourier finds best fit of the model.
+                                          K=c(2,12)) #the less K the simpler. 
+                             #2 stands for the weekly and weekend 
+                             #12 stands for the number of the yearly seasons we need. it must be even.
                              )
 
-#Forecast with ARIMA fit
+#Forecast with ARIMA fit (bcz autoarima doesn't give the forcast, it only gives the best fit)
 #also need to specify h for fourier terms
 ARIMA_Four_for <- forecast(ARIMA_Four_fit,
                            xreg=fourier(ts_act_power_daily_train,
